@@ -1,4 +1,4 @@
-const manufacturingModel = require("./manufacturing.model");
+const Manufacturing = require("./manufacturing.model");
 const db = require("../../config/db");
 
 const createStage = async (data) => {
@@ -43,29 +43,34 @@ const updateStageStatus = async (id, status) => {
 
     // 2. Check if all stages for this production order are COMPLETED
     const orderId = updatedStage.production_order_id;
-    const allStages = await manufacturingModel.getByOrderId(orderId);
+    const allStages = await Manufacturing.findAll({
+      where: { production_order_id: orderId }
+    });
     
     const allCompleted = allStages.length > 0 && allStages.every(stage => stage.status === "COMPLETED");
 
     if (allCompleted) {
-      // 3. Update production_orders status
-      await client.query(
-        "UPDATE production_orders SET status = 'COMPLETED' WHERE id = $1",
-        [orderId]
-      );
+      // 3. Get the customer order ID from production_orders
+      const prodOrderInfo = await client.query("SELECT order_id, product_name FROM production_orders WHERE id = $1", [orderId]);
+      
+      if (prodOrderInfo.rows.length > 0) {
+        const customerOrderId = prodOrderInfo.rows[0].order_id;
+        const productName = prodOrderInfo.rows[0].product_name;
 
-      // 4. Update related production table (if linked - here we assume car_model match or just update general production status)
-      // Since there's no direct FK between production and production_orders in the schema provided, 
-      // we'll search for a production record with a similar car_model if possible, 
-      // but for now let's focus on the order status as requested.
-      // If the user meant the 'production' table as well:
-      const orderInfo = await client.query("SELECT product_name FROM production_orders WHERE id = $1", [orderId]);
-      if (orderInfo.rows.length > 0) {
-          const productName = orderInfo.rows[0].product_name;
-          await client.query(
-              "UPDATE production SET status = 'COMPLETED' WHERE car_model = $1 AND status = 'IN_PROGRESS'",
-              [productName]
-          );
+        // 4. Update production_orders status
+        await client.query("UPDATE production_orders SET status = 'COMPLETED' WHERE id = $1", [orderId]);
+
+        // 5. Create a Delivery record automatically
+        await client.query(
+          "INSERT INTO deliveries (order_id, delivery_status, delivery_date) VALUES ($1, 'READY', CURRENT_TIMESTAMP)",
+          [customerOrderId]
+        );
+
+        // 6. Update the original customer order status to READY_FOR_DELIVERY
+        await client.query(
+          "UPDATE orders SET status = 'READY_FOR_DELIVERY' WHERE id = $1",
+          [customerOrderId]
+        );
       }
     }
 
@@ -80,7 +85,9 @@ const updateStageStatus = async (id, status) => {
 };
 
 const getStagesByOrder = async (orderId) => {
-  return await manufacturingModel.getByOrderId(orderId);
+  return await Manufacturing.findAll({
+    where: { production_order_id: orderId }
+  });
 };
 
 module.exports = {

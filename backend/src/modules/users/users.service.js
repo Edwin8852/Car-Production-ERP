@@ -1,27 +1,43 @@
-const usersModel = require("./users.model");
+const User = require("./users.model");
+const Role = require("./role.model");
+const bcrypt = require("bcrypt");
 
 const getAllUsers = async () => {
-  return await usersModel.getAllUsers();
+  return await User.findAll({
+    include: [{ model: Role }]
+  });
+};
+
+const getRoles = async () => {
+  return await Role.findAll();
 };
 
 const createUser = async (data) => {
-  const { name, email, password, role_id } = data;
-  return await usersModel.createUser(name, email, password, role_id);
+  if (data.password) {
+    data.password = await bcrypt.hash(data.password, 10);
+  }
+  return await User.create(data);
 };
 
-
 const getUserById = async (id) => {
-  const user = await usersModel.getUserById(id);
+  const user = await User.findByPk(id, {
+    include: [{ model: Role }]
+  });
   if (!user) throw new Error("User not found");
   return user;
 };
 
 const updateUser = async (id, data) => {
-  return await usersModel.updateUser(id, data);
+  const user = await User.findByPk(id);
+  if (!user) throw new Error("User not found");
+  return await user.update(data);
 };
 
 const deleteUser = async (id) => {
-  return await usersModel.deleteUser(id);
+  const user = await User.findByPk(id);
+  if (!user) throw new Error("User not found");
+  await user.destroy();
+  return { message: "User deleted successfully" };
 };
 
 module.exports = {
@@ -30,4 +46,5 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
+  getRoles,
 };

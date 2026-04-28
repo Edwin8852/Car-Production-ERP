@@ -46,10 +46,20 @@ const deleteUser = async (req, res, next) => {
   }
 };
 
+const getRoles = async (req, res, next) => {
+  try {
+    const roles = await usersService.getRoles();
+    res.status(200).json({ success: true, data: roles });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllUsers,
   createUser,
   getUserById,
   updateUser,
   deleteUser,
+  getRoles,
 };

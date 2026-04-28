@@ -29,12 +29,22 @@ const updateOrderStatus = async (id, status) => {
     const result = await client.query("UPDATE orders SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
     const updatedOrder = result.rows[0];
 
-    // If order is approved (IN_PROGRESS), create a production order
+    // If order is approved (IN_PROGRESS), create a production order and its stages
     if (status === "IN_PROGRESS" && updatedOrder) {
-      await client.query(
-        "INSERT INTO production_orders (order_id, product_name, status) VALUES ($1, $2, 'IN_PROGRESS')",
+      const prodResult = await client.query(
+        "INSERT INTO production_orders (order_id, product_name, status) VALUES ($1, $2, 'IN_PROGRESS') RETURNING id",
         [updatedOrder.id, updatedOrder.product_name]
       );
+      const productionOrderId = prodResult.rows[0].id;
+
+      // Initialize Manufacturing Stages
+      const stages = ["Assembly", "Painting", "Testing"];
+      for (const stageName of stages) {
+        await client.query(
+          "INSERT INTO manufacturing (production_order_id, stage, status) VALUES ($1, $2, 'PENDING')",
+          [productionOrderId, stageName]
+        );
+      }
     }
 
     await client.query("COMMIT");

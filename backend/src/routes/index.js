@@ -10,8 +10,10 @@ const productionRoutes = require("../modules/production/production.routes");
 const orderRoutes = require("../modules/orders/orders.routes");
 const customerRoutes = require("../modules/customers/customers.routes");
 const manufacturingRoutes = require("../modules/manufacturing/manufacturing.routes");
+const dashboardRoutes = require("../modules/dashboard/dashboard.routes");
 
 router.use("/auth", authRoutes);
+router.use("/dashboard", dashboardRoutes);
 router.use("/users", userRoutes);
 router.use("/suppliers", supplierRoutes);
 router.use("/materials", materialRoutes);

@@ -1,26 +1,30 @@
-const materialsModel = require("./materials.model");
+const Material = require("./materials.model");
 
 const getAllMaterials = async () => {
-  return await materialsModel.getAllMaterials();
+  return await Material.findAll();
 };
 
 const createMaterial = async (data) => {
-  // Business logic: check if material with same name exists if needed
-  return await materialsModel.createMaterial(data);
+  return await Material.create(data);
 };
 
 const getMaterialById = async (id) => {
-  const material = await materialsModel.getMaterialById(id);
+  const material = await Material.findByPk(id);
   if (!material) throw new Error("Material not found");
   return material;
 };
 
 const updateMaterial = async (id, data) => {
-  return await materialsModel.updateMaterial(id, data);
+  const material = await Material.findByPk(id);
+  if (!material) throw new Error("Material not found");
+  return await material.update(data);
 };
 
 const deleteMaterial = async (id) => {
-  return await materialsModel.deleteMaterial(id);
+  const material = await Material.findByPk(id);
+  if (!material) throw new Error("Material not found");
+  await material.destroy();
+  return { message: "Material deleted successfully" };
 };
 
 module.exports = {

@@ -11,8 +11,8 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT,
     logging: false, // Set to console.log to see SQL queries
     define: {
-      timestamps: true,
-      underscored: true, // Use snake_case for fields
+      timestamps: false, // Disable automatic createdAt/updatedAt
+      underscored: true,
     },
   }
 );

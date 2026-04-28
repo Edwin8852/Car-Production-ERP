@@ -34,7 +34,6 @@ const User = sequelize.define("User", {
 
 User.associate = (models) => {
   User.belongsTo(models.Role, { foreignKey: "role_id" });
-  User.hasMany(models.Order, { foreignKey: "customer_id" });
   User.hasMany(models.Delivery, { foreignKey: "delivery_person_id" });
 };
 

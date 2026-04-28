@@ -51,7 +51,7 @@ const updateStatus = async (req, res, next) => {
 const getTrackingInfo = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const trackingData = await ordersService.getTrackingInfo(id);
+    const trackingData = await orderService.getTrackingInfo(id);
     res.status(200).json({
       success: true,
       data: trackingData,
