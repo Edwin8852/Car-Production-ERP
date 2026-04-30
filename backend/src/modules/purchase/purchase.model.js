@@ -29,7 +29,15 @@ const Purchase = sequelize.define("Purchase", {
       min: 0.01,
     },
   },
+  total_amount: {
+    type: DataTypes.DECIMAL(12, 2),
+  },
+  status: {
+    type: DataTypes.STRING(50),
+    defaultValue: "ORDERED",
+  },
 }, {
+
   tableName: "purchases",
   underscored: true,
 });

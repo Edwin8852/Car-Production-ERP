@@ -1,74 +1,112 @@
-const db = require("../../config/db");
+const Delivery = require("./delivery.model");
+const Order = require("../orders/orders.model");
+const User = require("../users/users.model");
+const { DELIVERY_STATUS } = require("../../shared/constants/delivery");
 
-const createDelivery = async ({ order_id, delivery_date, delivery_person, status }) => {
-  const finalStatus = status || 'READY';
-
-  // Determine if delivery_person is a name or an ID
-  const isId = !isNaN(delivery_person) && typeof delivery_person !== 'string' && delivery_person !== null;
-  
-  const query = `
-    INSERT INTO deliveries (order_id, delivery_date, delivery_status, delivery_person_id, delivery_person_name)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING *
-  `;
-  const result = await db.query(query, [
-    order_id, 
-    delivery_date || new Date(), 
-    finalStatus, 
-    isId ? delivery_person : null,
-    isId ? null : (delivery_person || null)
-  ]);
-  return result.rows[0];
+/**
+ * GET assigned deliveries for a specific delivery person
+ */
+const getAssignedDeliveries = async (deliveryPersonId) => {
+  return await Delivery.findAll({
+    where: { assigned_delivery_id: deliveryPersonId },
+    include: [
+      { 
+        model: Order, 
+        as: "order", 
+        attributes: ["id", "order_number", "customer_name", "shipping_address", "total_amount"] 
+      }
+    ],
+    order: [["created_at", "DESC"]]
+  });
 };
 
-const getAllDeliveries = async () => {
-  const query = `
-    SELECT d.*, o.product_name, c.name as customer_name
-    FROM deliveries d
-    JOIN orders o ON d.order_id = o.id
-    JOIN customers c ON o.customer_id = c.id
-    ORDER BY d.created_at DESC
-  `;
-  const result = await db.query(query);
-  return result.rows;
+/**
+ * GET delivery details by ID
+ */
+const getDeliveryById = async (id, deliveryPersonId = null) => {
+  const where = { id };
+  if (deliveryPersonId) where.assigned_delivery_id = deliveryPersonId;
+
+  const delivery = await Delivery.findOne({
+    where,
+    include: [
+      { model: Order, as: "order" },
+      { model: User, as: "delivery_person", attributes: ["id", "name", "phone", "vehicle_number"] }
+    ]
+  });
+
+  if (!delivery) throw new Error("Delivery not found or access denied.");
+  return delivery;
 };
 
-const updateDeliveryStatus = async (id, status) => {
-  const client = await db.pool.connect();
-  try {
-    await client.query("BEGIN");
+/**
+ * UPDATE delivery status with flow validation
+ */
+const updateDeliveryStatus = async (id, deliveryPersonId, newStatus) => {
+  const delivery = await Delivery.findOne({ where: { id, assigned_delivery_id: deliveryPersonId } });
+  if (!delivery) throw new Error("Delivery not found or access denied.");
 
-    const result = await client.query(
-      "UPDATE deliveries SET delivery_status = $1 WHERE id = $2 RETURNING *", 
-      [status, id]
-    );
-    
-    if (result.rows.length === 0) {
-      throw new Error("Delivery record not found");
-    }
-    
-    const updatedDelivery = result.rows[0];
+  const currentStatus = delivery.status;
 
-    // If delivery is complete, mark the original order as DELIVERED
-    if (status === "DELIVERED") {
-      await client.query(
-        "UPDATE orders SET status = 'DELIVERED' WHERE id = $1",
-        [updatedDelivery.order_id]
-      );
-    }
-
-    await client.query("COMMIT");
-    return updatedDelivery;
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
+  // Finality check: Once delivered, cannot change status
+  if (currentStatus === DELIVERY_STATUS.DELIVERED) {
+    throw new Error("Cannot update status for a completed delivery.");
   }
+
+  // Status Flow Validation
+  const validTransitions = {
+    [DELIVERY_STATUS.ASSIGNED]: [DELIVERY_STATUS.OUT_FOR_DELIVERY],
+    [DELIVERY_STATUS.OUT_FOR_DELIVERY]: [DELIVERY_STATUS.DELIVERED],
+    [DELIVERY_STATUS.DELIVERED]: [],
+  };
+
+  if (!validTransitions[currentStatus].includes(newStatus)) {
+    throw new Error(`Invalid status transition from ${currentStatus} to ${newStatus}.`);
+  }
+
+  await delivery.update({ status: newStatus });
+
+  // Business Logic: If status is 'delivered', we need confirmation (usually handled in separate API)
+  // But we allow manual status update for flow progress.
+  
+  return delivery;
+};
+
+/**
+ * CONFIRM delivery with proof and signature
+ */
+const confirmDelivery = async (id, deliveryPersonId, data) => {
+  const { proof_image, customer_signature } = data;
+  
+  const delivery = await Delivery.findOne({ where: { id, assigned_delivery_id: deliveryPersonId } });
+  if (!delivery) throw new Error("Delivery not found or access denied.");
+
+  if (delivery.status === DELIVERY_STATUS.DELIVERED) {
+    throw new Error("Delivery is already confirmed.");
+  }
+
+  const now = new Date();
+
+  await delivery.update({
+    status: DELIVERY_STATUS.DELIVERED,
+    delivery_date: now.toISOString().split('T')[0],
+    delivery_time: now.toTimeString().split(' ')[0],
+    proof_image: proof_image || null,
+    customer_signature: customer_signature || null,
+  });
+
+  // Business Logic: Update the main Order status
+  await Order.update(
+    { status: "DELIVERED" },
+    { where: { id: delivery.order_id } }
+  );
+
+  return delivery;
 };
 
 module.exports = {
-  createDelivery,
-  getAllDeliveries,
+  getAssignedDeliveries,
+  getDeliveryById,
   updateDeliveryStatus,
+  confirmDelivery,
 };

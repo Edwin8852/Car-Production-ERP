@@ -3,7 +3,7 @@ const orderService = require("./orders.service");
 const createOrder = async (req, res, next) => {
   try {
     // 1. Input Normalization (Accept both camelCase and snake_case)
-    const customerId = req.body.customerId || req.body.customer_id;
+    const customerId = req.body.customerId || req.body.customer_id || req.user.id;
     const productName = req.body.productName || req.body.product_name;
 
     // 2. Strict Validation
@@ -13,9 +13,10 @@ const createOrder = async (req, res, next) => {
       });
     }
 
+
     // 3. Map to Service (Database uses snake_case)
     const order = await orderService.createOrder({ 
-      customer_id: customerId, 
+      user_id: customerId, 
       product_name: productName 
     });
 
@@ -51,11 +52,21 @@ const updateStatus = async (req, res, next) => {
 const getTrackingInfo = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const trackingData = await orderService.getTrackingInfo(id);
+    const trackingData = await orderService.getTrackingInfo(id, req.user);
     res.status(200).json({
       success: true,
       data: trackingData,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMyOrders = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const orders = await orderService.getOrdersByUser(userId);
+    res.status(200).json({ success: true, data: orders });
   } catch (error) {
     next(error);
   }
@@ -66,4 +77,6 @@ module.exports = {
   getAllOrders,
   updateStatus,
   getTrackingInfo,
+  getMyOrders,
 };
+

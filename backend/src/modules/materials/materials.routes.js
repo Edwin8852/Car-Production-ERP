@@ -1,15 +1,16 @@
 const router = require("express").Router();
 const materialsController = require("./materials.controller");
-const { authenticate, authorize } = require("../../shared/authMiddleware");
+const { authenticate, requireActive, allowAdminAccess, allowManager } = require("../../shared/middleware/auth.middleware");
 
-// All materials routes protected
 router.use(authenticate);
-router.use(authorize("SUPER_ADMIN", "ADMIN", "MANAGER"));
+router.use(requireActive);
 
-router.get("/", materialsController.getAllMaterials);
-router.post("/", materialsController.createMaterial);
-router.get("/:id", materialsController.getMaterialById);
-router.put("/:id", materialsController.updateMaterial);
-router.delete("/:id", materialsController.deleteMaterial);
+// Read access for Manager+, write access for Admin+
+router.get("/", allowManager, materialsController.getAllMaterials);
+router.post("/", allowAdminAccess, materialsController.createMaterial);
+router.get("/:id", allowManager, materialsController.getMaterialById);
+router.put("/:id", allowAdminAccess, materialsController.updateMaterial);
+router.delete("/:id", allowAdminAccess, materialsController.deleteMaterial);
 
 module.exports = router;
+

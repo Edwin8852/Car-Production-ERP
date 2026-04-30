@@ -25,7 +25,7 @@ const Manufacturing = sequelize.define("Manufacturing", {
 });
 
 Manufacturing.associate = (models) => {
-  Manufacturing.belongsTo(models.ProductionOrder, { foreignKey: "production_order_id" });
+  Manufacturing.belongsTo(models.Production, { foreignKey: "production_order_id" });
 };
 
 module.exports = Manufacturing;

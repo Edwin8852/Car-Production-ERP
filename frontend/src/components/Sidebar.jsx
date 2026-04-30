@@ -21,16 +21,23 @@ const Sidebar = () => {
     navigate('/login');
   };
 
+  const role = localStorage.getItem('role')?.toUpperCase() || '';
+
   const navItems = [
-    { path: '/', name: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { path: '/orders', name: 'Orders', icon: <ShoppingCart size={20} /> },
-    { path: '/production', name: 'Production', icon: <Factory size={20} /> },
-    { path: '/materials', name: 'Materials', icon: <Package size={20} /> },
-    { path: '/suppliers', name: 'Suppliers', icon: <Users size={20} /> },
-    { path: '/purchase', name: 'Purchase', icon: <CreditCard size={20} /> },
-    { path: '/delivery', name: 'Delivery', icon: <Truck size={20} /> },
-    { path: '/users', name: 'Users (Admin)', icon: <Shield size={20} /> },
+    { path: '/', name: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'DELIVERY_PERSON', 'USER', 'STAFF', 'SUPER ADMIN', 'DELIVERY PERSON'] },
+    { path: '/orders', name: 'Orders', icon: <ShoppingCart size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPER ADMIN'] },
+    { path: '/production', name: 'Production', icon: <Factory size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPER ADMIN'] },
+    { path: '/materials', name: 'Materials', icon: <Package size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPER ADMIN'] },
+    { path: '/suppliers', name: 'Suppliers', icon: <Users size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPER ADMIN'] },
+    { path: '/purchase', name: 'Purchase', icon: <CreditCard size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'SUPER ADMIN'] },
+    { path: '/delivery', name: 'Delivery', icon: <Truck size={20} />, roles: ['SUPER_ADMIN', 'ADMIN', 'DELIVERY_PERSON', 'SUPER ADMIN', 'DELIVERY PERSON'] },
+    { path: '/users', name: 'Users (Admin)', icon: <Shield size={20} />, roles: ['SUPER_ADMIN', 'SUPER ADMIN'] },
   ];
+
+  const filteredItems = navItems.filter(item => 
+    !item.roles || item.roles.includes(role)
+  );
+
 
   return (
     <aside className="sidebar">
@@ -42,7 +49,7 @@ const Sidebar = () => {
       </div>
       
       <div className="sidebar-nav">
-        {navItems.map((item) => (
+        {filteredItems.map((item) => (
           <NavLink 
             to={item.path} 
             key={item.name}
@@ -54,6 +61,7 @@ const Sidebar = () => {
           </NavLink>
         ))}
       </div>
+
 
       <div className="sidebar-footer">
         <button className="nav-link logout-btn" onClick={handleLogout}>

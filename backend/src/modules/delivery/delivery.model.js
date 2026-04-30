@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../../config/sequelize");
+const { DELIVERY_STATUS } = require("../../shared/constants/delivery");
 
 const Delivery = sequelize.define("Delivery", {
   id: {
@@ -11,18 +12,35 @@ const Delivery = sequelize.define("Delivery", {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  delivery_person_id: {
+  assigned_delivery_id: {
     type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
-  delivery_person_name: {
-    type: DataTypes.STRING(100),
-  },
-  delivery_status: {
-    type: DataTypes.STRING(50),
-    defaultValue: "READY",
+  status: {
+    type: DataTypes.ENUM(Object.values(DELIVERY_STATUS)),
+    defaultValue: DELIVERY_STATUS.ASSIGNED,
+    allowNull: false,
   },
   delivery_date: {
-    type: DataTypes.DATE,
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+  delivery_time: {
+    type: DataTypes.TIME,
+    allowNull: true,
+  },
+  proof_image: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  customer_signature: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: "Base64 or SVG signature string",
   },
 }, {
   tableName: "deliveries",
@@ -30,8 +48,8 @@ const Delivery = sequelize.define("Delivery", {
 });
 
 Delivery.associate = (models) => {
-  Delivery.belongsTo(models.Order, { foreignKey: "order_id" });
-  Delivery.belongsTo(models.User, { foreignKey: "delivery_person_id", as: "delivery_staff" });
+  Delivery.belongsTo(models.Order, { foreignKey: "order_id", as: "order" });
+  Delivery.belongsTo(models.User, { foreignKey: "assigned_delivery_id", as: "delivery_person" });
 };
 
 module.exports = Delivery;

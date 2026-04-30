@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const customerController = require("./customers.controller");
-const { authenticate, authorize } = require("../../shared/authMiddleware");
+const { authenticate, authorize } = require("../../shared/middleware/auth.middleware");
 
 // All customer routes protected
 router.use(authenticate);

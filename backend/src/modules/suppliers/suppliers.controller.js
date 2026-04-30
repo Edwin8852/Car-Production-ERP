@@ -1,18 +1,19 @@
-const suppliersService = require("./suppliers.service");
+const supplierService = require("./suppliers.service");
 
-const getAllSuppliers = async (req, res, next) => {
+const createSupplier = async (req, res, next) => {
   try {
-    const suppliers = await suppliersService.getAllSuppliers();
-    res.status(200).json({ success: true, data: suppliers });
+    const supplier = await supplierService.createSupplier(req.body);
+    res.status(201).json({ success: true, message: "Supplier created successfully", data: supplier });
   } catch (error) {
     next(error);
   }
 };
 
-const createSupplier = async (req, res, next) => {
+const getAllSuppliers = async (req, res, next) => {
   try {
-    const supplier = await suppliersService.createSupplier(req.body);
-    res.status(201).json({ success: true, data: supplier });
+    const filters = { status: req.query.status };
+    const suppliers = await supplierService.getAllSuppliers(filters);
+    res.status(200).json({ success: true, data: suppliers });
   } catch (error) {
     next(error);
   }
@@ -20,7 +21,7 @@ const createSupplier = async (req, res, next) => {
 
 const getSupplierById = async (req, res, next) => {
   try {
-    const supplier = await suppliersService.getSupplierById(req.params.id);
+    const supplier = await supplierService.getSupplierById(req.params.id);
     res.status(200).json({ success: true, data: supplier });
   } catch (error) {
     next(error);
@@ -29,8 +30,8 @@ const getSupplierById = async (req, res, next) => {
 
 const updateSupplier = async (req, res, next) => {
   try {
-    const supplier = await suppliersService.updateSupplier(req.params.id, req.body);
-    res.status(200).json({ success: true, data: supplier });
+    const supplier = await supplierService.updateSupplier(req.params.id, req.body);
+    res.status(200).json({ success: true, message: "Supplier updated successfully", data: supplier });
   } catch (error) {
     next(error);
   }
@@ -38,17 +39,17 @@ const updateSupplier = async (req, res, next) => {
 
 const deleteSupplier = async (req, res, next) => {
   try {
-    await suppliersService.deleteSupplier(req.params.id);
-    res.status(200).json({ success: true, message: "Supplier deleted successfully" });
+    await supplierService.deleteSupplier(req.params.id);
+    res.status(200).json({ success: true, message: "Supplier deactivated successfully" });
   } catch (error) {
     next(error);
   }
 };
 
 module.exports = {
-  getAllSuppliers,
   createSupplier,
+  getAllSuppliers,
   getSupplierById,
   updateSupplier,
-  deleteSupplier,
+  deleteSupplier
 };

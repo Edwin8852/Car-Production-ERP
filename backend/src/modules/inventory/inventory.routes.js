@@ -1,13 +1,15 @@
 const router = require("express").Router();
 const inventoryController = require("./inventory.controller");
-const { authenticate, authorize } = require("../../shared/authMiddleware");
+const { authenticate, requireActive, allowAdminAccess } = require("../../shared/middleware/auth.middleware");
 
-// All inventory routes protected
 router.use(authenticate);
+router.use(requireActive);
+router.use(allowAdminAccess);
 
-router.get("/materials", authorize("SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF"), inventoryController.getAllMaterials);
-router.post("/materials", authorize("SUPER_ADMIN", "ADMIN", "MANAGER"), inventoryController.createMaterial);
-router.get("/", authorize("SUPER_ADMIN", "ADMIN", "MANAGER", "STAFF"), inventoryController.getInventory);
-router.post("/update-stock", authorize("SUPER_ADMIN", "ADMIN", "MANAGER"), inventoryController.updateStock);
+router.get("/materials", inventoryController.getAllMaterials);
+router.post("/materials", inventoryController.createMaterial);
+router.get("/", inventoryController.getInventory);
+router.post("/update-stock", inventoryController.updateStock);
 
 module.exports = router;
+

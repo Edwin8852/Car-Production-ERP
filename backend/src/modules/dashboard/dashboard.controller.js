@@ -4,13 +4,13 @@ const getStats = async (req, res, next) => {
   try {
     const queries = {
       totalOrders: "SELECT COUNT(*) FROM orders",
-      productionVolume: "SELECT COUNT(*) FROM production_orders WHERE status = 'IN_PROGRESS'",
+      productionVolume: "SELECT COUNT(*) FROM production WHERE status = 'in_progress'",
       lowStock: "SELECT COUNT(*) FROM materials WHERE stock < 10",
       revenue: "SELECT SUM(total_amount) FROM orders WHERE status = 'DELIVERED'",
       recentOrders: `
-        SELECT o.*, c.name as customer_name 
+        SELECT o.*, u.name as user_name 
         FROM orders o 
-        JOIN customers c ON o.customer_id = c.id 
+        JOIN users u ON o.user_id = u.id 
         ORDER BY o.created_at DESC 
         LIMIT 5
       `

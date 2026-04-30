@@ -21,12 +21,17 @@ const Material = sequelize.define("Material", {
     type: DataTypes.DECIMAL(12, 2),
     defaultValue: 0,
   },
+  supplier_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
 }, {
   tableName: "materials",
   underscored: true,
 });
 
 Material.associate = (models) => {
+  Material.belongsTo(models.Supplier, { foreignKey: "supplier_id", as: "supplier" });
   Material.hasMany(models.Purchase, { foreignKey: "material_id" });
 };
 

@@ -19,7 +19,7 @@ const createStage = async (data) => {
     throw error;
   }
 
-  return await manufacturingModel.create(data);
+  return await Manufacturing.create(data);
 };
 
 const updateStageStatus = async (id, status) => {
@@ -50,15 +50,14 @@ const updateStageStatus = async (id, status) => {
     const allCompleted = allStages.length > 0 && allStages.every(stage => stage.status === "COMPLETED");
 
     if (allCompleted) {
-      // 3. Get the customer order ID from production_orders
-      const prodOrderInfo = await client.query("SELECT order_id, product_name FROM production_orders WHERE id = $1", [orderId]);
-      
-      if (prodOrderInfo.rows.length > 0) {
-        const customerOrderId = prodOrderInfo.rows[0].order_id;
-        const productName = prodOrderInfo.rows[0].product_name;
+        // 3. Get the customer order ID from production
+        const prodOrderInfo = await client.query("SELECT order_id FROM production WHERE id = $1", [orderId]);
+        
+        if (prodOrderInfo.rows.length > 0) {
+          const customerOrderId = prodOrderInfo.rows[0].order_id;
 
-        // 4. Update production_orders status
-        await client.query("UPDATE production_orders SET status = 'COMPLETED' WHERE id = $1", [orderId]);
+          // 4. Update production status
+          await client.query("UPDATE production SET status = 'completed', end_date = CURRENT_TIMESTAMP WHERE id = $1", [orderId]);
 
         // 5. Create a Delivery record automatically
         await client.query(

@@ -1,7 +1,7 @@
 const db = require("../../config/db");
 
 const createPurchase = async (purchaseData) => {
-  const { supplier_id, material_id, quantity, price } = purchaseData;
+  const { supplier_id, material_id, quantity, price, status } = purchaseData;
   const client = await db.pool.connect();
 
   try {
@@ -20,20 +20,25 @@ const createPurchase = async (purchaseData) => {
     }
 
     // 3. Insert Purchase
+    const totalAmount = quantity * price;
+    const finalStatus = status || 'ORDERED';
+    
     const insertQuery = `
-      INSERT INTO purchases (supplier_id, material_id, quantity, price)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO purchases (supplier_id, material_id, quantity, price, total_amount, status)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    const purchaseResult = await client.query(insertQuery, [supplier_id, material_id, quantity, price]);
+    const purchaseResult = await client.query(insertQuery, [supplier_id, material_id, quantity, price, totalAmount, finalStatus]);
 
-    // 4. Update Stock in Materials table
-    const updateStockQuery = `
-      UPDATE materials 
-      SET stock = stock + $1 
-      WHERE id = $2
-    `;
-    await client.query(updateStockQuery, [quantity, material_id]);
+    // 4. Update Stock only if received
+    if (finalStatus === 'RECEIVED') {
+      const updateStockQuery = `
+        UPDATE materials 
+        SET stock = stock + $1 
+        WHERE id = $2
+      `;
+      await client.query(updateStockQuery, [quantity, material_id]);
+    }
 
     await client.query("COMMIT");
     return purchaseResult.rows[0];
@@ -72,6 +77,54 @@ const getPurchaseById = async (id) => {
   return result.rows[0];
 };
 
+const updatePurchaseStatus = async (id, status) => {
+  const client = await db.pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Get current purchase
+    const getQuery = "SELECT * FROM purchases WHERE id = $1 FOR UPDATE";
+    const getResult = await client.query(getQuery, [id]);
+    if (getResult.rows.length === 0) {
+      throw new Error("Purchase not found");
+    }
+    const purchase = getResult.rows[0];
+
+    // If it's already received, don't double count
+    if (purchase.status === 'RECEIVED') {
+      throw new Error("Purchase is already received");
+    }
+
+    // Update status
+    const updateQuery = `
+      UPDATE purchases 
+      SET status = $1, updated_at = NOW() 
+      WHERE id = $2 
+      RETURNING *
+    `;
+    const result = await client.query(updateQuery, [status, id]);
+    const updatedPurchase = result.rows[0];
+
+    // Update stock if received
+    if (status === 'RECEIVED') {
+      const updateStockQuery = `
+        UPDATE materials 
+        SET stock = stock + $1 
+        WHERE id = $2
+      `;
+      await client.query(updateStockQuery, [purchase.quantity, purchase.material_id]);
+    }
+
+    await client.query("COMMIT");
+    return updatedPurchase;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 const createBulkPurchases = async (supplierId, items) => {
   const client = await db.pool.connect();
   try {
@@ -87,7 +140,7 @@ const createBulkPurchases = async (supplierId, items) => {
 
     // 2. Loop through items and insert
     for (const item of items) {
-      const { materialId, quantity, price } = item;
+      const { materialId, quantity, price, status } = item;
 
       // Validate material exists
       const materialCheck = await client.query("SELECT id FROM materials WHERE id = $1", [materialId]);
@@ -95,22 +148,27 @@ const createBulkPurchases = async (supplierId, items) => {
         throw new Error(`Material with ID ${materialId} not found`);
       }
 
+      const totalAmount = quantity * price;
+      const finalStatus = status || 'ORDERED';
+
       // Insert Purchase record
       const query = `
-        INSERT INTO purchases (supplier_id, material_id, quantity, price)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO purchases (supplier_id, material_id, quantity, price, total_amount, status)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
       `;
-      const result = await client.query(query, [supplierId, materialId, quantity, price]);
+      const result = await client.query(query, [supplierId, materialId, quantity, price, totalAmount, finalStatus]);
       createdPurchases.push(result.rows[0]);
 
-      // Update Stock in Materials table
-      const updateStockQuery = `
-        UPDATE materials 
-        SET stock = stock + $1 
-        WHERE id = $2
-      `;
-      await client.query(updateStockQuery, [quantity, materialId]);
+      // Update Stock only if received
+      if (finalStatus === 'RECEIVED') {
+        const updateStockQuery = `
+          UPDATE materials 
+          SET stock = stock + $1 
+          WHERE id = $2
+        `;
+        await client.query(updateStockQuery, [quantity, materialId]);
+      }
     }
 
     await client.query("COMMIT");
@@ -128,4 +186,6 @@ module.exports = {
   createBulkPurchases,
   getAllPurchases,
   getPurchaseById,
+  updatePurchaseStatus,
 };
+

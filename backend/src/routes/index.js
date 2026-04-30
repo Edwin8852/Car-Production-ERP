@@ -11,10 +11,17 @@ const orderRoutes = require("../modules/orders/orders.routes");
 const customerRoutes = require("../modules/customers/customers.routes");
 const manufacturingRoutes = require("../modules/manufacturing/manufacturing.routes");
 const dashboardRoutes = require("../modules/dashboard/dashboard.routes");
+const systemRoutes = require("../modules/system/system.routes");
+const superAdminRoutes = require("../modules/super-admin/super-admin.routes");
 
 router.use("/auth", authRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/system", systemRoutes);
 router.use("/users", userRoutes);
+
+// Super Admin exclusive module
+router.use("/super-admin", superAdminRoutes);
+
 router.use("/suppliers", supplierRoutes);
 router.use("/materials", materialRoutes);
 router.use("/purchases", purchaseRoutes);

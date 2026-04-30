@@ -90,8 +90,27 @@ const getPurchaseById = async (req, res, next) => {
   }
 };
 
+const updatePurchaseStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ message: "status is required" });
+    }
+    const purchase = await purchaseService.updatePurchaseStatus(id, status);
+    res.status(200).json({
+      message: "Purchase status updated",
+      data: purchase,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createPurchase,
   getAllPurchases,
   getPurchaseById,
+  updatePurchaseStatus,
 };
+

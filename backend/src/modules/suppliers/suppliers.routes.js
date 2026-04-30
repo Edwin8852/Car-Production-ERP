@@ -1,15 +1,29 @@
 const router = require("express").Router();
-const suppliersController = require("./suppliers.controller");
-const { authenticate, authorize } = require("../../shared/authMiddleware");
+const ctrl = require("./suppliers.controller");
+const { authenticate, requireActive, allowAdminAccess } = require("../../shared/middleware/auth.middleware");
 
-// All supplier routes protected
+// Global protection
 router.use(authenticate);
-router.use(authorize("SUPER_ADMIN", "ADMIN", "MANAGER"));
+router.use(requireActive);
 
-router.get("/", suppliersController.getAllSuppliers);
-router.post("/", suppliersController.createSupplier);
-router.get("/:id", suppliersController.getSupplierById);
-router.put("/:id", suppliersController.updateSupplier);
-router.delete("/:id", suppliersController.deleteSupplier);
+/**
+ * SUPPLIER MANAGEMENT ROUTES
+ * Accessible only by Admin and Super Admin
+ */
+
+// POST /api/suppliers — Create supplier
+router.post("/", allowAdminAccess, ctrl.createSupplier);
+
+// GET /api/suppliers — Get all suppliers
+router.get("/", allowAdminAccess, ctrl.getAllSuppliers);
+
+// GET /api/suppliers/:id — Get single supplier
+router.get("/:id", allowAdminAccess, ctrl.getSupplierById);
+
+// PUT /api/suppliers/:id — Update supplier
+router.put("/:id", allowAdminAccess, ctrl.updateSupplier);
+
+// DELETE /api/suppliers/:id — Soft delete (deactivate)
+router.delete("/:id", allowAdminAccess, ctrl.deleteSupplier);
 
 module.exports = router;

@@ -1,12 +1,26 @@
-const express = require("express");
-const router = express.Router();
-const deliveryController = require("./delivery.controller");
-const { authenticate, authorize } = require("../../shared/authMiddleware");
+const router = require("express").Router();
+const ctrl = require("./delivery.controller");
+const { authenticate, requireActive, allowDelivery } = require("../../shared/middleware/auth.middleware");
 
+// Global protection
 router.use(authenticate);
+router.use(requireActive);
 
-router.post("/", authorize("SUPER_ADMIN", "ADMIN", "MANAGER", "DELIVERY"), deliveryController.createDelivery);
-router.get("/", deliveryController.getAllDeliveries);
-router.patch("/:id/status", authorize("SUPER_ADMIN", "ADMIN", "DELIVERY"), deliveryController.updateStatus);
+/**
+ * DELIVERY PERSON SPECIFIC ROUTES
+ * Accessible by Delivery Person, Admin, and Super Admin
+ */
+
+// GET /api/delivery/assigned — Get assigned deliveries
+router.get("/assigned", allowDelivery, ctrl.getAssignedDeliveries);
+
+// GET /api/delivery/:id — Get details of a specific delivery
+router.get("/:id", allowDelivery, ctrl.getDeliveryById);
+
+// PUT /api/delivery/:id/status — Update status (flow validated)
+router.put("/:id/status", allowDelivery, ctrl.updateDeliveryStatus);
+
+// PUT /api/delivery/:id/confirm — Confirm delivery with proof/signature
+router.put("/:id/confirm", allowDelivery, ctrl.confirmDelivery);
 
 module.exports = router;

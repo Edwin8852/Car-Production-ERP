@@ -1,17 +1,51 @@
 const router = require("express").Router();
-const usersController = require("./users.controller");
-const { authenticate, authorize } = require("../../shared/authMiddleware");
+const ctrl = require("./users.controller");
+const {
+  authenticate,
+  requireActive,
+  allowSuperAdmin,
+  allowAdminAccess,
+  allowUser,
+} = require("../../shared/middleware/auth.middleware");
 
-// All user routes are protected and restricted to SUPER_ADMIN/ADMIN
+// All routes require a valid, active session
 router.use(authenticate);
-router.use(authorize("SUPER_ADMIN", "ADMIN"));
+router.use(requireActive);
 
-router.get("/", usersController.getAllUsers);
-router.get("/roles", authorize("SUPER_ADMIN", "ADMIN"), usersController.getRoles);
-router.post("/", authorize("SUPER_ADMIN", "ADMIN"), usersController.createUser);
-router.get("/:id", authorize("SUPER_ADMIN", "ADMIN"), usersController.getUserById);
-router.put("/:id", authorize("SUPER_ADMIN", "ADMIN"), usersController.updateUser);
-router.delete("/:id", authorize("SUPER_ADMIN", "ADMIN"), usersController.deleteUser);
+// ─────────────────────────────────────────────────────────────
+// PROFILE MANAGEMENT (User can access own)
+// ─────────────────────────────────────────────────────────────
 
+// GET /api/users/profile
+router.get("/profile", allowUser, ctrl.getProfile);
+
+// PUT /api/users/profile
+router.put("/profile", allowUser, ctrl.updateProfile);
+
+// ─────────────────────────────────────────────────────────────
+// USER CRUD (Admin Only)
+// ─────────────────────────────────────────────────────────────
+
+// GET /api/users?role=MANAGER&status=ACTIVE  — Admin + Super Admin
+router.get("/", allowAdminAccess, ctrl.getAllUsers);
+
+// GET /api/users/roles  — Super Admin only (Admin uses fixed ENUM list on FE)
+router.get("/roles", allowSuperAdmin, ctrl.getRoles);
+
+// POST /api/users  — Admin creates MANAGER/DELIVERY/USER; Super Admin creates ADMIN
+//   Service layer enforces the role restriction at business logic level
+router.post("/", allowAdminAccess, ctrl.createUser);
+
+// GET /api/users/:id  — Admin + Super Admin
+router.get("/:id", allowAdminAccess, ctrl.getUserById);
+
+// PUT /api/users/:id  — Admin + Super Admin (service guards role escalation)
+router.put("/:id", allowAdminAccess, ctrl.updateUser);
+
+// PATCH /api/users/:id/status  — Toggle ACTIVE / INACTIVE (Admin + Super Admin)
+router.patch("/:id/status", allowAdminAccess, ctrl.toggleUserStatus);
+
+// DELETE /api/users/:id  — Super Admin ONLY (irreversible)
+router.delete("/:id", allowSuperAdmin, ctrl.deleteUser);
 
 module.exports = router;

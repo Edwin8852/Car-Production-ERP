@@ -1,20 +1,21 @@
 const db = require("../../config/db");
+const { ROLES } = require("../../shared/constants/roles");
 
-const createOrder = async ({ customer_id, product_name }) => {
+const createOrder = async ({ user_id, product_name }) => {
   const query = `
-    INSERT INTO orders (customer_id, product_name, status)
-    VALUES ($1, $2, 'PENDING')
+    INSERT INTO orders (user_id, product_name, status)
+    VALUES ($1, $2, 'ordered')
     RETURNING *
   `;
-  const result = await db.query(query, [customer_id, product_name]);
+  const result = await db.query(query, [user_id, product_name]);
   return result.rows[0];
 };
 
 const getAllOrders = async () => {
   const query = `
-    SELECT o.*, c.name as customer_name, c.phone as customer_phone
+    SELECT o.*, u.name as user_name, u.phone as user_phone
     FROM orders o
-    JOIN customers c ON o.customer_id = c.id
+    JOIN users u ON o.user_id = u.id
     ORDER BY o.created_at DESC
   `;
   const result = await db.query(query);
@@ -29,11 +30,11 @@ const updateOrderStatus = async (id, status) => {
     const result = await client.query("UPDATE orders SET status = $1 WHERE id = $2 RETURNING *", [status, id]);
     const updatedOrder = result.rows[0];
 
-    // If order is approved (IN_PROGRESS), create a production order and its stages
-    if (status === "IN_PROGRESS" && updatedOrder) {
+    // If order is in_production, create a production record
+    if (status === "in_production" && updatedOrder) {
       const prodResult = await client.query(
-        "INSERT INTO production_orders (order_id, product_name, status) VALUES ($1, $2, 'IN_PROGRESS') RETURNING id",
-        [updatedOrder.id, updatedOrder.product_name]
+        "INSERT INTO production (order_id, status) VALUES ($1, 'in_progress') RETURNING id",
+        [updatedOrder.id]
       );
       const productionOrderId = prodResult.rows[0].id;
 
@@ -57,11 +58,11 @@ const updateOrderStatus = async (id, status) => {
   }
 };
 
-const getTrackingInfo = async (orderId) => {
+const getTrackingInfo = async (orderId, requestingUser) => {
   const orderQuery = `
-    SELECT o.*, c.name as customer_name
+    SELECT o.*, u.name as user_name
     FROM orders o
-    JOIN customers c ON o.customer_id = c.id
+    JOIN users u ON o.user_id = u.id
     WHERE o.id = $1
   `;
   const orderResult = await db.query(orderQuery, [orderId]);
@@ -69,8 +70,13 @@ const getTrackingInfo = async (orderId) => {
 
   const order = orderResult.rows[0];
 
+  // Ownership Check: Normal users can only track their own orders
+  if (requestingUser.role === ROLES.USER && parseInt(order.user_id) !== parseInt(requestingUser.id)) {
+    throw new Error("Access denied. You can only track your own orders.");
+  }
+
   // Get Production Info
-  const prodQuery = "SELECT * FROM production_orders WHERE order_id = $1";
+  const prodQuery = "SELECT * FROM production WHERE order_id = $1";
   const prodResult = await db.query(prodQuery, [orderId]);
   const production = prodResult.rows[0];
 
@@ -95,9 +101,22 @@ const getTrackingInfo = async (orderId) => {
   };
 };
 
+const getOrdersByUser = async (userId) => {
+  const query = `
+    SELECT o.*, u.name as user_name, u.phone as user_phone
+    FROM orders o
+    JOIN users u ON o.user_id = u.id
+    WHERE o.user_id = $1
+    ORDER BY o.created_at DESC
+  `;
+  const result = await db.query(query, [userId]);
+  return result.rows;
+};
+
 module.exports = {
   createOrder,
   getAllOrders,
   updateOrderStatus,
   getTrackingInfo,
+  getOrdersByUser,
 };

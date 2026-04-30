@@ -1,14 +1,21 @@
 const express = require("express");
 const router = express.Router();
 const manufacturingController = require("./manufacturing.controller");
+const {
+  authenticate,
+  requireActive,
+  allowAdminAccess,
+  allowManager,
+} = require("../../shared/middleware/auth.middleware");
 
-// Route to create a new manufacturing stage
-router.post("/", manufacturingController.createStage);
+router.use(authenticate);
+router.use(requireActive);
 
-// Route to update a manufacturing stage status
-router.patch("/:id/status", manufacturingController.updateStageStatus);
+// Managers+ can view and update manufacturing stages
+router.get("/order/:orderId", allowManager, manufacturingController.getStagesByOrder);
+router.patch("/:id/status", allowManager, manufacturingController.updateStageStatus);
 
-// Route to get all stages for a specific production order
-router.get("/order/:orderId", manufacturingController.getStagesByOrder);
+// Admin+ can create stages
+router.post("/", allowAdminAccess, manufacturingController.createStage);
 
 module.exports = router;

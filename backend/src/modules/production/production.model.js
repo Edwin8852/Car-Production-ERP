@@ -1,7 +1,8 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../../config/sequelize");
+const { PRODUCTION_STATUS } = require("../../shared/constants/production");
 
-const ProductionOrder = sequelize.define("ProductionOrder", {
+const Production = sequelize.define("Production", {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -9,23 +10,42 @@ const ProductionOrder = sequelize.define("ProductionOrder", {
   },
   order_id: {
     type: DataTypes.INTEGER,
-  },
-  product_name: {
-    type: DataTypes.STRING(100),
     allowNull: false,
   },
+  assigned_manager_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
   status: {
-    type: DataTypes.STRING(50),
-    defaultValue: "IN_PROGRESS",
+    type: DataTypes.ENUM(Object.values(PRODUCTION_STATUS)),
+    defaultValue: PRODUCTION_STATUS.PENDING,
+    allowNull: false,
+  },
+  materials_used: {
+    type: DataTypes.JSONB,
+    defaultValue: [],
+    comment: "List of materials and quantities used in this production run",
+  },
+  start_date: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  end_date: {
+    type: DataTypes.DATE,
+    allowNull: true,
   },
 }, {
-  tableName: "production_orders",
+  tableName: "production",
   underscored: true,
 });
 
-ProductionOrder.associate = (models) => {
-  ProductionOrder.belongsTo(models.Order, { foreignKey: "order_id" });
-  ProductionOrder.hasMany(models.Manufacturing, { foreignKey: "production_order_id", onDelete: "CASCADE" });
+Production.associate = (models) => {
+  Production.belongsTo(models.Order, { foreignKey: "order_id", as: "order" });
+  Production.belongsTo(models.User, { foreignKey: "assigned_manager_id", as: "manager" });
 };
 
-module.exports = ProductionOrder;
+module.exports = Production;
